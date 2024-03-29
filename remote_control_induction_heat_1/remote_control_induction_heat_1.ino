@@ -1,5 +1,6 @@
 /*
  * Описание работы
+ * Arduino Uno => HW-262 => Relay module 4
  * При включении инициализируется таймер на 60 минут
  * после окончания работы таймера включается реле на 200мс
  * контактами реле включается нагреватель
@@ -19,7 +20,8 @@ enum CountDownModeValues
   COUNTING
 };
 
-byte countDownMode = COUNTING_STOPPED;
+// задаем режим работы при старте
+byte countDownMode = COUNTING;
 
 
 byte tenths = 0;
