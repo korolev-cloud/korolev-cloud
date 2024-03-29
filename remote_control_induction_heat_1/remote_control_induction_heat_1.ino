@@ -14,6 +14,8 @@
 #define TIMER_VALUE_MAX 99
 #define PIN_RELAY_1  5 // Arduino пин, подключенный через IN5 к реле на кнопку "Timer" печки
 #define PIN_RELAY_2  6 // Arduino пин, подключенный через IN5 к реле на кнопку "+"" печки
+#define PIN_RELAY_3  12 // Arduino пин, подключенный через IN5 к реле на кнопку "Timer" печки
+#define PIN_RELAY_4  13 // Arduino пин, подключенный через IN5 к реле на кнопку "+"" печки
 
 enum CountDownModeValues
 {
@@ -32,6 +34,26 @@ char minutes = 0;
 void saveTimer(char minutes, char seconds) {
   EEPROM.writeByte(0, seconds);
   EEPROM.writeByte(sizeof(byte), minutes);
+}
+
+void relayManage(){
+  //продление нагрева печки нажатиями кнопок "Timer" и "+"
+  // включить реле1 на 200мс
+  Serial.println("Turn on relay1");
+  digitalWrite(PIN_RELAY_1, LOW);
+  digitalWrite(PIN_RELAY_3, LOW);
+  delay(400);
+  // выключить реле1
+  digitalWrite(PIN_RELAY_1, HIGH);
+  digitalWrite(PIN_RELAY_3, HIGH);
+  // включить реле2 на 200мс
+  Serial.println("Turn on relay2");
+  digitalWrite(PIN_RELAY_2, LOW);
+  digitalWrite(PIN_RELAY_4, LOW);
+  delay(400);
+  // выключить реле2
+  digitalWrite(PIN_RELAY_2, HIGH);
+  digitalWrite(PIN_RELAY_4, HIGH);
 }
 
 void loadTimer() {
@@ -90,21 +112,7 @@ void checkCountDownConditions (byte btn) {
       if (minutes == 0 && seconds == 0) {
         // timer has reached 0, so sound the alarm
         MFS.beep(50, 50, 3);  // beep 3 times, 500 milliseconds on / 500 off
-        
-        //продление нагрева печки нажатиями кнопок "Timer" и "+"
-        // включить реле1 на 200мс
-        Serial.println("Turn on relay1");
-        digitalWrite(PIN_RELAY_1, HIGH);
-        delay(200);
-        // выключить реле1
-        digitalWrite(PIN_RELAY_1, LOW);
-        // включить реле2 на 200мс
-        Serial.println("Turn on relay2");
-        digitalWrite(PIN_RELAY_2, HIGH);
-        delay(200);
-        // выключить реле2
-        digitalWrite(PIN_RELAY_2, LOW);
-        
+        relayManage(); //управление печкой через контакты реле
         loadTimer();
         // countDownMode = COUNTING_STOPPED;
       }
@@ -130,6 +138,12 @@ void setup() {
   // Инициализируем пин реле как выход.
   pinMode(PIN_RELAY_1, OUTPUT);
   pinMode(PIN_RELAY_2, OUTPUT);
+  pinMode(PIN_RELAY_3, OUTPUT); //проверка работы реле
+  pinMode(PIN_RELAY_4, OUTPUT); //проверка работы реле
+  digitalWrite(PIN_RELAY_1, HIGH);
+  digitalWrite(PIN_RELAY_2, HIGH);
+  digitalWrite(PIN_RELAY_3, HIGH);
+  digitalWrite(PIN_RELAY_4, HIGH);
   loadTimer();
 }
 
