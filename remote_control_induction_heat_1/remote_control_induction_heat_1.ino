@@ -46,6 +46,7 @@ void relayManage(){
   // выключить реле1
   digitalWrite(PIN_RELAY_1, HIGH);
   digitalWrite(PIN_RELAY_3, HIGH);
+  delay(400);
   // включить реле2 на 200мс
   Serial.println("Turn on relay2");
   digitalWrite(PIN_RELAY_2, LOW);
