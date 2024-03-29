@@ -13,9 +13,9 @@
 
 #define TIMER_VALUE_MAX 99
 #define PIN_RELAY_1  5 // Arduino пин, подключенный через IN5 к реле на кнопку "Timer" печки
-#define PIN_RELAY_2  6 // Arduino пин, подключенный через IN5 к реле на кнопку "+"" печки
-#define PIN_RELAY_3  12 // Arduino пин, подключенный через IN5 к реле на кнопку "Timer" печки
-#define PIN_RELAY_4  13 // Arduino пин, подключенный через IN5 к реле на кнопку "+"" печки
+#define PIN_RELAY_2  6 // Arduino пин, подключенный через IN6 к реле на кнопку "+"" печки
+#define PIN_RELAY_3  12 // Arduino LED2
+#define PIN_RELAY_4  13 // Arduino LED1
 
 enum CountDownModeValues
 {
@@ -39,22 +39,24 @@ void saveTimer(char minutes, char seconds) {
 void relayManage(){
   //продление нагрева печки нажатиями кнопок "Timer" и "+"
   // включить реле1 на 200мс
-  Serial.println("Turn on relay1");
   digitalWrite(PIN_RELAY_1, LOW);
   digitalWrite(PIN_RELAY_3, LOW);
-  delay(400);
+  delay(200);
   // выключить реле1
   digitalWrite(PIN_RELAY_1, HIGH);
   digitalWrite(PIN_RELAY_3, HIGH);
   delay(400);
-  // включить реле2 на 200мс
-  Serial.println("Turn on relay2");
-  digitalWrite(PIN_RELAY_2, LOW);
-  digitalWrite(PIN_RELAY_4, LOW);
-  delay(400);
-  // выключить реле2
-  digitalWrite(PIN_RELAY_2, HIGH);
-  digitalWrite(PIN_RELAY_4, HIGH);
+  // включить реле2 36 раз на 50мс
+  for(int i = 36; i > 0; i--){
+    digitalWrite(PIN_RELAY_2, LOW);
+    digitalWrite(PIN_RELAY_4, LOW);
+    delay(50);
+    // выключить реле2
+    digitalWrite(PIN_RELAY_2, HIGH);
+    digitalWrite(PIN_RELAY_4, HIGH);
+    delay(50);
+  }
+
 }
 
 void loadTimer() {
@@ -141,10 +143,10 @@ void setup() {
   pinMode(PIN_RELAY_2, OUTPUT);
   pinMode(PIN_RELAY_3, OUTPUT); //проверка работы реле
   pinMode(PIN_RELAY_4, OUTPUT); //проверка работы реле
-  digitalWrite(PIN_RELAY_1, HIGH);
-  digitalWrite(PIN_RELAY_2, HIGH);
-  digitalWrite(PIN_RELAY_3, HIGH);
-  digitalWrite(PIN_RELAY_4, HIGH);
+  //digitalWrite(PIN_RELAY_1, HIGH);
+  //digitalWrite(PIN_RELAY_2, HIGH);
+  //digitalWrite(PIN_RELAY_3, HIGH);
+  //digitalWrite(PIN_RELAY_4, HIGH);
   loadTimer();
 }
 
