@@ -7,6 +7,7 @@
  * затем снова стартует таймер на 60 минут
  */
 #include <TimerOne.h>
+#include <microDS18B20.h>
 #include <Wire.h>
 #include <EEPROMex.h>
 #include <MultiFuncShield.h>
@@ -38,6 +39,8 @@ byte countingMode = DIST;
 byte tenths = 0;
 char seconds = 0;
 char minutes = 0;
+MicroDS18B20<2> sensor;
+
 
 float tempSensor = 0; //переменная температуры
 float tempStopDistillers = 98.0f; //стоп дистилляции
@@ -168,7 +171,7 @@ void checkCountDownConditions (byte btn) {
     }
     // выполнение обратного отсчета таймера
     tenths++; // continue counting down
-    tempSensor += 0.1f;
+    sensor.requestTemp();
     if (tenths == 10) {
 
       tenths = 0;
@@ -242,7 +245,8 @@ void loop() {
     case WORK:
         checkCountDownConditions(btn);
         MFS.blinkDisplay(DIGIT_1 | DIGIT_2 | DIGIT_3 | DIGIT_4, OFF);
-        MFS.write(tempSensor, 2);
+        sensor.readTemp();
+        MFS.write(sensor.getTemp(), 2);
         // display(minutes,seconds);
         break;
 
