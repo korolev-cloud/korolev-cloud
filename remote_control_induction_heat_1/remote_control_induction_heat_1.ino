@@ -35,8 +35,11 @@ byte countDownMode = SETUP;
 byte countingMode = DIST;
 
 byte tenths = 0;
-char seconds = 10;
+char seconds = 0;
 char minutes = 0;
+
+float tempSensor = 0; //переменная температуры
+float tempStopDistillers = 98.0f; //стоп дистилляции
 
 void saveTimer(char minutes, char seconds) {
   EEPROM.writeByte(0, seconds);
@@ -96,11 +99,11 @@ void stopHeating(){
 void loadTimer() {
   // время перезапуска таймера индукционной печки
   seconds=10;
-  minutes=0;
+  minutes=60;
 }
 
 void checkStopConditions(byte btn) {
-  // отработка нажатия кнопки 1 "СТОП"
+  // отработка нажатия кнопки 1 "СТАРТ" в режиме COUNTING_STOPPED
   if (btn == BUTTON_1_SHORT_RELEASE && (minutes + seconds) > 0) {
     countDownMode = WORK; // start the timer
     MFS.beep(6, 2, 3);  // beep 3 times, 600 milliseconds on / 200 off
@@ -111,7 +114,7 @@ void checkStopConditions(byte btn) {
 }
 
 void checkSetupConditions(byte btn) {
-  // отработка нажатия кнопки 1 "Старт"
+  // отработка нажатия кнопки 1 "Старт" в режиме "Setup"
   if (btn == BUTTON_1_SHORT_RELEASE) {
     countDownMode = WORK; // изменен режим на Работа
     MFS.blinkDisplay(DIGIT_1 | DIGIT_2 | DIGIT_3 | DIGIT_4, OFF);
@@ -145,7 +148,7 @@ void checkSetupConditions(byte btn) {
 }
 
 void checkCountDownConditions (byte btn) {
-
+  // отработка нажатия кнопки 1 "Стоп" в режиме "WORK"
   if (btn == BUTTON_1_SHORT_RELEASE || btn == BUTTON_1_LONG_RELEASE) {
     //countDownMode = COUNTING_STOPPED; // stop the timer
     MFS.write ("STOP");
@@ -153,9 +156,16 @@ void checkCountDownConditions (byte btn) {
     MFS.beep(6, 2, 2);  // beep 6 times, 200 milliseconds on / 200 off
   }
   else { 
-
+    //тело цикла в режиме "WORK"
+    if (countingMode == DIST && tempSensor > tempStopDistillers){
+      MFS.write ("END");
+      delay(5000);
+      MFS.beep(6, 2, 2);  // beep 6 times, 200 milliseconds on / 200 off
+      stopHeating();
+    }
+    // выполнение обратного отсчета таймера
     tenths++; // continue counting down
-
+    tempSensor += 0.1f;
     if (tenths == 10) {
 
       tenths = 0;
@@ -222,7 +232,8 @@ void loop() {
     case WORK:
         checkCountDownConditions(btn);
         MFS.blinkDisplay(DIGIT_1 | DIGIT_2 | DIGIT_3 | DIGIT_4, OFF);
-        display(minutes,seconds);
+        MFS.write(tempSensor, 2);
+        // display(minutes,seconds);
         break;
 
     case SETUP:
