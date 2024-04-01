@@ -72,14 +72,14 @@ void startHeating(){
   delay(50);
   // выключить реле1
   digitalWrite(PIN_RELAY_1, LOW);
-  delay(50);
+  delay(5000);
   for(int i = 3; i > 0; i--){
     // включить реле2
     digitalWrite(PIN_RELAY_2, HIGH);
-    delay(50);
+    delay(100);
     // выключить реле2
     digitalWrite(PIN_RELAY_2, LOW);
-    delay(50);
+    delay(100);
   }
   MFS.write ("2700");
   delay(2000);
@@ -118,14 +118,14 @@ void checkSetupConditions(byte btn) {
   if (btn == BUTTON_1_SHORT_RELEASE) {
     countDownMode = WORK; // изменен режим на Работа
     MFS.blinkDisplay(DIGIT_1 | DIGIT_2 | DIGIT_3 | DIGIT_4, OFF);
-    MFS.write ("STAR");
-    delay(500);
-    MFS.write ("TART");
-    delay(1000);
+    MFS.write ("STRT");
+    delay(2000);
+    MFS.write ("HEAT");
+    delay(2000);
     MFS.write ((minutes * 60) + seconds);
-    delay(1000);
+    delay(2000);
     MFS.write ("sec");
-    delay(1000);
+    delay(2000);
     startHeating();
     MFS.beep(1, 2, 3);  // beep 1 times, 600 milliseconds on / 200 off
   }
@@ -154,6 +154,7 @@ void checkCountDownConditions (byte btn) {
     MFS.write ("STOP");
     delay(1000);
     MFS.beep(6, 2, 2);  // beep 6 times, 200 milliseconds on / 200 off
+    
   }
   else { 
     //тело цикла в режиме "WORK"
@@ -162,6 +163,7 @@ void checkCountDownConditions (byte btn) {
       delay(5000);
       MFS.beep(6, 2, 2);  // beep 6 times, 200 milliseconds on / 200 off
       stopHeating();
+      countDownMode = SETUP;
     }
     // выполнение обратного отсчета таймера
     tenths++; // continue counting down
