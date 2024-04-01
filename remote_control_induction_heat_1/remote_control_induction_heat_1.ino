@@ -21,7 +21,8 @@ enum CountDownModeValues
 {
   COUNTING_STOPPED,
   WORK,
-  SETUP
+  SETUP,
+  END
 };
 
 enum CountingModeValues
@@ -163,7 +164,7 @@ void checkCountDownConditions (byte btn) {
       delay(5000);
       MFS.beep(6, 2, 2);  // beep 6 times, 200 milliseconds on / 200 off
       stopHeating();
-      countDownMode = SETUP;
+      countDownMode = END;
     }
     // выполнение обратного отсчета таймера
     tenths++; // continue counting down
@@ -199,6 +200,13 @@ void checkCountDownConditions (byte btn) {
 
   }
 
+}
+
+void checkEndConditions(byte btn) {
+  // отработка нажатия кнопки 1 "Старт" в режиме "Setup"
+  if (btn == BUTTON_1_SHORT_RELEASE) {
+    countDownMode = SETUP;
+  }
 }
 
 void display (char min, char sec){
@@ -240,6 +248,11 @@ void loop() {
 
     case SETUP:
         checkSetupConditions(btn);
+        MFS.blinkDisplay(DIGIT_1 | DIGIT_2 | DIGIT_3 | DIGIT_4);
+        break;
+
+    case END:
+        checkEndConditions(btn);
         MFS.blinkDisplay(DIGIT_1 | DIGIT_2 | DIGIT_3 | DIGIT_4);
         break;
   }
