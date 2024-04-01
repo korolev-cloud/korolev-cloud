@@ -171,6 +171,7 @@ void checkCountDownConditions (byte btn) {
     }
     // выполнение обратного отсчета таймера
     tenths++; // continue counting down
+    // чтение температуры с датчика
     sensor.requestTemp();
     if (tenths == 10) {
 
