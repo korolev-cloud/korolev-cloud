@@ -56,12 +56,12 @@ void restartTimerHeating(){
   digitalWrite(PIN_RELAY_4, LOW);
   delay(400);
   // включить реле2 36 раз на 50мс
-  for(int i = 36; i > 0; i--){
+  for(int i = 45; i > 0; i--){
     digitalWrite(PIN_RELAY_2, HIGH);
-    delay(50);
+    delay(100);
     // выключить реле2
     digitalWrite(PIN_RELAY_2, LOW);
-    delay(50);
+    delay(100);
   }
 
 }
@@ -99,8 +99,8 @@ void stopHeating(){
 
 void loadTimer() {
   // время перезапуска таймера индукционной печки
-  seconds=10;
-  minutes=60;
+  seconds=60;
+  minutes=0;
 }
 
 void checkStopConditions(byte btn) {
@@ -253,6 +253,7 @@ void loop() {
 
     case END:
         checkEndConditions(btn);
+        MFS.write ("END");
         MFS.blinkDisplay(DIGIT_1 | DIGIT_2 | DIGIT_3 | DIGIT_4);
         break;
   }
