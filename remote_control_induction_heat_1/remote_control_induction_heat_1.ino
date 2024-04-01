@@ -14,21 +14,28 @@
 #define TIMER_VALUE_MAX 99
 #define PIN_RELAY_1  5 // Arduino пин, подключенный через IN5 к реле на кнопку "Power" печки
 #define PIN_RELAY_2  6 // Arduino пин, подключенный через IN6 к реле на кнопку "+" печки
-#define PIN_RELAY_3  7 // Arduino пин, подключенный через IN6 к реле на кнопку "-" печки
-#define PIN_RELAY_4  8 // Arduino пин, подключенный через IN6 к реле на кнопку "Timer" печки
+#define PIN_RELAY_3  9 // Arduino пин, подключенный через IN6 к реле на кнопку "-" печки
+#define PIN_RELAY_4  A5 // Arduino пин, подключенный через IN6 к реле на кнопку "Timer" печки
 
 enum CountDownModeValues
 {
   COUNTING_STOPPED,
-  COUNTING
+  WORK,
+  SETUP
+};
+
+enum CountingModeValues
+{
+  DIST,
+  RECT
 };
 
 // задаем режим работы при старте
-byte countDownMode = COUNTING;
-
+byte countDownMode = SETUP;
+byte countingMode = DIST;
 
 byte tenths = 0;
-char seconds = 0;
+char seconds = 10;
 char minutes = 0;
 
 void saveTimer(char minutes, char seconds) {
@@ -36,9 +43,9 @@ void saveTimer(char minutes, char seconds) {
   EEPROM.writeByte(sizeof(byte), minutes);
 }
 
-void relayManage(){
+void restartTimerHeating(){
   //продление нагрева печки нажатиями кнопок "Timer" и "+"
-  // включить реле4 на 50мс
+  //включить реле4 на 50мс
   digitalWrite(PIN_RELAY_4, HIGH);
   delay(50);
   // выключить реле4
@@ -55,43 +62,94 @@ void relayManage(){
 
 }
 
-void loadTimer() {
-  seconds = EEPROM.readByte(0);
-  minutes = EEPROM.readByte(sizeof(byte));
-  if((seconds+minutes)<0){
-    seconds=0;
-    minutes=0;
+void startHeating(){
+  // включение печки и выбор мощности нагрева 2700 после старта на 2000
+  // включить реле1
+  digitalWrite(PIN_RELAY_1, HIGH);
+  delay(50);
+  // выключить реле1
+  digitalWrite(PIN_RELAY_1, LOW);
+  delay(50);
+  for(int i = 3; i > 0; i--){
+    // включить реле2
+    digitalWrite(PIN_RELAY_2, HIGH);
+    delay(50);
+    // выключить реле2
+    digitalWrite(PIN_RELAY_2, LOW);
+    delay(50);
   }
+  MFS.write ("2700");
+  delay(2000);
+}
+
+void stopHeating(){
+  // полное отключение печки
+  // включить реле1
+  digitalWrite(PIN_RELAY_1, HIGH);
+  delay(50);
+  // выключить реле1
+  digitalWrite(PIN_RELAY_1, LOW);
+  delay(50);
+}
+
+
+void loadTimer() {
+  // время перезапуска таймера индукционной печки
+  seconds=10;
+  minutes=0;
 }
 
 void checkStopConditions(byte btn) {
-
+  // отработка нажатия кнопки 1 "СТОП"
   if (btn == BUTTON_1_SHORT_RELEASE && (minutes + seconds) > 0) {
-    countDownMode = COUNTING; // start the timer
+    countDownMode = WORK; // start the timer
     MFS.beep(6, 2, 3);  // beep 3 times, 600 milliseconds on / 200 off
-    saveTimer(minutes,seconds);
+    //saveTimer(minutes,seconds);
   }
-  else if (btn == BUTTON_1_LONG_PRESSED) {
-    tenths  = 0; // reset the timer
-    seconds = 0;
-    minutes = 0;
-    MFS.beep(8, 10, 1);  // beep 1 times, 800 milliseconds on / 1000 off
-  }
-  else if (btn == BUTTON_2_PRESSED || btn == BUTTON_2_LONG_PRESSED) {
-    minutes++;
-    if (minutes > TIMER_VALUE_MAX) minutes = 0;
-  }
-  else if (btn == BUTTON_3_PRESSED || btn == BUTTON_3_LONG_PRESSED) {
-    seconds += 1; // continue counting down
-    if (seconds >= 60) seconds = 0;
-  }
+  
 
+}
+
+void checkSetupConditions(byte btn) {
+  // отработка нажатия кнопки 1 "Старт"
+  if (btn == BUTTON_1_SHORT_RELEASE) {
+    countDownMode = WORK; // изменен режим на Работа
+    MFS.blinkDisplay(DIGIT_1 | DIGIT_2 | DIGIT_3 | DIGIT_4, OFF);
+    MFS.write ("STAR");
+    delay(500);
+    MFS.write ("TART");
+    delay(1000);
+    MFS.write ((minutes * 60) + seconds);
+    delay(1000);
+    MFS.write ("sec");
+    delay(1000);
+    startHeating();
+    MFS.beep(1, 2, 3);  // beep 1 times, 600 milliseconds on / 200 off
+  }
+  else if (btn == BUTTON_2_PRESSED && countingMode == DIST) {
+    // изменение режима работы с дист на рект
+    countingMode = RECT;
+  }
+  else if (btn == BUTTON_2_PRESSED && countingMode == RECT) {
+    // изменение режима работы с рект на дист 
+    countingMode = DIST;
+  }
+  if (countingMode == DIST) 
+  {
+    MFS.write ("DIST");
+  }
+  else 
+  {
+    MFS.write ("RECT");
+  }
 }
 
 void checkCountDownConditions (byte btn) {
 
   if (btn == BUTTON_1_SHORT_RELEASE || btn == BUTTON_1_LONG_RELEASE) {
-    countDownMode = COUNTING_STOPPED; // stop the timer
+    //countDownMode = COUNTING_STOPPED; // stop the timer
+    MFS.write ("STOP");
+    delay(1000);
     MFS.beep(6, 2, 2);  // beep 6 times, 200 milliseconds on / 200 off
   }
   else { 
@@ -109,11 +167,18 @@ void checkCountDownConditions (byte btn) {
       }
 
       if (minutes == 0 && seconds == 0) {
-        // timer has reached 0, so sound the alarm
         MFS.beep(50, 50, 3);  // beep 3 times, 500 milliseconds on / 500 off
-        relayManage(); //управление печкой через контакты реле
+        MFS.write ("REST"); delay(300);
+        MFS.write ("ESTA"); delay(300);
+        MFS.write ("STAR"); delay(300);
+        MFS.write ("TART"); delay(300);
+        MFS.write ("ART "); delay(300);
+        MFS.write ("RT H"); delay(300);
+        MFS.write ("T HE"); delay(300);
+        MFS.write (" HEA"); delay(300);
+        MFS.write ("HEAT"); delay(300);
+        restartTimerHeating(); //перезапуск таймера печки
         loadTimer();
-        // countDownMode = COUNTING_STOPPED;
       }
 
     }
@@ -125,17 +190,14 @@ void checkCountDownConditions (byte btn) {
 }
 
 void display (char min, char sec){
-  // display minutes and seconds sepated with a point
-  MFS.write((float)((minutes*100 + seconds)/100.0),2);
+  MFS.write((float)((minutes*100 + seconds)/100.0),2); // отображение времени работы таймера
 }
 
 void setup() {
-  // put your setup code here, to run once:
   Timer1.initialize();
   MFS.initialize(&Timer1);    // initialize multifunction shield library
   MFS.write(0);
-  // Инициализируем пин реле как выход.
-  pinMode(PIN_RELAY_1, OUTPUT);
+  pinMode(PIN_RELAY_1, OUTPUT); // Инициализируем пин реле как выход.
   pinMode(PIN_RELAY_2, OUTPUT);
   pinMode(PIN_RELAY_3, OUTPUT); 
   pinMode(PIN_RELAY_4, OUTPUT); 
@@ -157,12 +219,17 @@ void loop() {
         MFS.blinkDisplay(DIGIT_1 | DIGIT_2 | DIGIT_3 | DIGIT_4);
         break;
         
-    case COUNTING:
+    case WORK:
         checkCountDownConditions(btn);
         MFS.blinkDisplay(DIGIT_1 | DIGIT_2 | DIGIT_3 | DIGIT_4, OFF);
+        display(minutes,seconds);
+        break;
+
+    case SETUP:
+        checkSetupConditions(btn);
+        MFS.blinkDisplay(DIGIT_1 | DIGIT_2 | DIGIT_3 | DIGIT_4);
         break;
   }
-
-  display(minutes,seconds);
+  
 
 }
