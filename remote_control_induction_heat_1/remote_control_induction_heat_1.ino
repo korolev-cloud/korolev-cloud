@@ -44,6 +44,8 @@ MicroDS18B20<2> sensor;
 
 float tempSensor = 0; //переменная температуры
 float tempStopDistillers = 98.0f; //стоп дистилляции
+float tempStabileColumn = 70.0f; //стабилизация колонны
+
 
 void saveTimer(char minutes, char seconds) {
   EEPROM.writeByte(0, seconds);
@@ -58,7 +60,7 @@ void restartTimerHeating(){
   // выключить реле4
   digitalWrite(PIN_RELAY_4, LOW);
   delay(400);
-  // включить реле2 36 раз на 50мс
+  // включить реле2 45 раз на 100мс
   for(int i = 45; i > 0; i--){
     digitalWrite(PIN_RELAY_2, HIGH);
     delay(100);
@@ -67,6 +69,19 @@ void restartTimerHeating(){
     delay(100);
   }
 
+}
+
+void powerDownStabile(){
+  //уменьшение мощности печки для стабилизации колонны при ректификации нажатиями кнопок "-" 6 раз
+  delay(2000);
+  for(int i = 6; i > 0; i--){
+    //включить реле3 на 100мс
+    digitalWrite(PIN_RELAY_3, HIGH);
+    delay(100);
+    // выключить реле3
+    digitalWrite(PIN_RELAY_3, LOW);
+    delay(100);
+  }
 }
 
 void startHeating(){
@@ -169,6 +184,13 @@ void checkCountDownConditions (byte btn) {
       stopHeating();
       countDownMode = END;
     }
+    else if (countingMode == RECT && tempSensor > tempStabileColumn){
+      //снижение мощности до 1300 для стабилизации колонны
+      MFS.write ("1300");
+      delay(5000);
+      powerDownStabile();
+      MFS.beep(6, 2, 2);  // beep 6 times, 200 milliseconds on / 200 off
+    }
     // выполнение обратного отсчета таймера
     tenths++; // continue counting down
     // чтение температуры с датчика
@@ -247,7 +269,9 @@ void loop() {
         checkCountDownConditions(btn);
         MFS.blinkDisplay(DIGIT_1 | DIGIT_2 | DIGIT_3 | DIGIT_4, OFF);
         sensor.readTemp();
-        MFS.write(sensor.getTemp(), 2);
+        tempSensor = sensor.getTemp() * 3;
+        //tempSensor = sensor.getTemp();
+        MFS.write(tempSensor, 2);
         // display(minutes,seconds);
         break;
 
