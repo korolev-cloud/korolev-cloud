@@ -23,7 +23,8 @@ enum CountDownModeValues
   COUNTING_STOPPED,
   WORK,
   SETUP,
-  END
+  END,
+  STABILE
 };
 
 enum CountingModeValues
@@ -184,13 +185,25 @@ void checkCountDownConditions (byte btn) {
       stopHeating();
       countDownMode = END;
     }
+    
+    //тело цикла в режиме "RECT"
     else if (countingMode == RECT && tempSensor > tempStabileColumn){
       //снижение мощности до 1300 для стабилизации колонны
       MFS.write ("1300");
       delay(5000);
       powerDownStabile();
       MFS.beep(6, 2, 2);  // beep 6 times, 200 milliseconds on / 200 off
+      countingMode = STABILE;
+      MFS.write ("STAB");
+      delay(5000);
     }
+    
+    //тело цикла в режиме "STABILE"
+    else if (countingMode == STABILE && tempSensor > tempStabileColumn){
+      //стабилизация колонны
+      //MFS.beep(6, 2, 2);  // beep 6 times, 200 milliseconds on / 200 off
+    }
+
     // выполнение обратного отсчета таймера
     tenths++; // continue counting down
     // чтение температуры с датчика
@@ -284,6 +297,16 @@ void loop() {
         checkEndConditions(btn);
         MFS.write ("END");
         MFS.blinkDisplay(DIGIT_1 | DIGIT_2 | DIGIT_3 | DIGIT_4);
+        break;
+
+    case STABILE:
+        checkCountDownConditions(btn);
+        MFS.blinkDisplay(DIGIT_1 | DIGIT_2 | DIGIT_3 | DIGIT_4, OFF);
+        //sensor.readTemp();
+        tempSensor = sensor.getTemp() * 3;
+        //tempSensor = sensor.getTemp();
+        MFS.write(tempSensor, 2);
+        // display(minutes,seconds);
         break;
   }
   
