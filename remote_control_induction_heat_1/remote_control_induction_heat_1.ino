@@ -37,15 +37,16 @@ enum CountingModeValues
 byte countDownMode = SETUP;
 byte countingMode = DIST;
 
-byte tenths = 0;
-char seconds = 0;
-char minutes = 0;
+//char seconds = 0;
+//char minutes = 0;
 MicroDS18B20<2> sensor;
 
 
 float tempSensor = 0; //переменная температуры
 float tempStopDistillers = 98.0f; //стоп дистилляции
 float tempStabileColumn = 70.0f; //стабилизация колонны
+unsigned long timerHeat = 60*1000; //время перезапуска таймера печки
+unsigned long time = 0; //переменная старта таймера
 
 
 void saveTimer(char minutes, char seconds) {
@@ -118,13 +119,14 @@ void stopHeating(){
 
 void loadTimer() {
   // время перезапуска таймера индукционной печки
-  seconds=60;
-  minutes=0;
+  //seconds=60;
+  //minutes=0;
+  time = millis();
 }
 
 void checkStopConditions(byte btn) {
   // отработка нажатия кнопки 1 "СТАРТ" в режиме COUNTING_STOPPED
-  if (btn == BUTTON_1_SHORT_RELEASE && (minutes + seconds) > 0) {
+  if (btn == BUTTON_1_SHORT_RELEASE) {
     countDownMode = WORK; // start the timer
     MFS.beep(6, 2, 3);  // beep 3 times, 600 milliseconds on / 200 off
     //saveTimer(minutes,seconds);
@@ -140,30 +142,25 @@ void checkSetupConditions(byte btn) {
     MFS.blinkDisplay(DIGIT_1 | DIGIT_2 | DIGIT_3 | DIGIT_4, OFF);
     MFS.write ("STRT");
     delay(2000);
-    MFS.write ("HEAT");
-    delay(2000);
-    MFS.write ((minutes * 60) + seconds);
+    MFS.write (int (timerHeat/1000));
+    //MFS.write ((minutes * 60) + seconds);
     delay(2000);
     MFS.write ("sec");
     delay(2000);
     startHeating();
     MFS.beep(1, 2, 3);  // beep 1 times, 600 milliseconds on / 200 off
   }
-  else if (btn == BUTTON_2_PRESSED && countingMode == DIST) {
-    // изменение режима работы с дист на рект
-    countingMode = RECT;
-  }
-  else if (btn == BUTTON_2_PRESSED && countingMode == RECT) {
-    // изменение режима работы с рект на дист 
+  else if (btn == BUTTON_2_PRESSED) {
+    // изменение режима работы на дист
     countingMode = DIST;
-  }
-  if (countingMode == DIST) 
-  {
     MFS.write ("DIST");
+    //delay(1000);
   }
-  else 
-  {
+  else if (btn == BUTTON_3_PRESSED) {
+    // изменение режима работы на рект 
+    countingMode = RECT;
     MFS.write ("RECT");
+    //delay(1000);
   }
 }
 
@@ -204,36 +201,14 @@ void checkCountDownConditions (byte btn) {
       //MFS.beep(6, 2, 2);  // beep 6 times, 200 milliseconds on / 200 off
     }
 
-    // выполнение обратного отсчета таймера
-    tenths++; // continue counting down
     // чтение температуры с датчика
     sensor.requestTemp();
-    if (tenths == 10) {
-
-      tenths = 0;
-      seconds--;
-
-      if (seconds < 0 && minutes > 0) {
-        seconds = 59;
-        minutes--;
+    if (millis() - time >= timerHeat) {
+      MFS.beep(50, 50, 3);  // beep 3 times, 500 milliseconds on / 500 off
+      MFS.write ("RST"); delay(1000);
+      restartTimerHeating(); //перезапуск таймера печки
+      loadTimer();
       }
-
-      if (minutes == 0 && seconds == 0) {
-        MFS.beep(50, 50, 3);  // beep 3 times, 500 milliseconds on / 500 off
-        MFS.write ("REST"); delay(300);
-        MFS.write ("ESTA"); delay(300);
-        MFS.write ("STAR"); delay(300);
-        MFS.write ("TART"); delay(300);
-        MFS.write ("ART "); delay(300);
-        MFS.write ("RT H"); delay(300);
-        MFS.write ("T HE"); delay(300);
-        MFS.write (" HEA"); delay(300);
-        MFS.write ("HEAT"); delay(300);
-        restartTimerHeating(); //перезапуск таймера печки
-        loadTimer();
-      }
-
-    }
 
     delay(100);
 
@@ -248,9 +223,6 @@ void checkEndConditions(byte btn) {
   }
 }
 
-void display (char min, char sec){
-  MFS.write((float)((minutes*100 + seconds)/100.0),2); // отображение времени работы таймера
-}
 
 void setup() {
   Timer1.initialize();
@@ -270,7 +242,7 @@ void setup() {
 void loop() {
 
   byte btn = MFS.getButton();
-  
+  //MFS.write (millis() - time);
   switch (countDownMode)
   {
     case COUNTING_STOPPED:
@@ -282,10 +254,9 @@ void loop() {
         checkCountDownConditions(btn);
         MFS.blinkDisplay(DIGIT_1 | DIGIT_2 | DIGIT_3 | DIGIT_4, OFF);
         sensor.readTemp();
-        tempSensor = sensor.getTemp() * 3;
-        //tempSensor = sensor.getTemp();
+        //tempSensor = sensor.getTemp() * 3;
+        tempSensor = sensor.getTemp();
         MFS.write(tempSensor, 2);
-        // display(minutes,seconds);
         break;
 
     case SETUP:
@@ -302,11 +273,10 @@ void loop() {
     case STABILE:
         checkCountDownConditions(btn);
         MFS.blinkDisplay(DIGIT_1 | DIGIT_2 | DIGIT_3 | DIGIT_4, OFF);
-        //sensor.readTemp();
+        sensor.readTemp();
         tempSensor = sensor.getTemp() * 3;
         //tempSensor = sensor.getTemp();
         MFS.write(tempSensor, 2);
-        // display(minutes,seconds);
         break;
   }
   
