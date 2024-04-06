@@ -43,9 +43,9 @@ MicroDS18B20<2> sensor;
 
 
 float tempSensor = 0; //переменная температуры
-float tempStopDistillers = 98.0f; //стоп дистилляции
+float tempStopDistillers = 94.0f; //стоп дистилляции
 float tempStabileColumn = 70.0f; //стабилизация колонны
-unsigned long timerHeat = 60*1000; //время перезапуска таймера печки
+unsigned long timerHeat = 3600000; //время перезапуска таймера печки
 unsigned long time = 0; //переменная старта таймера
 
 
@@ -103,6 +103,8 @@ void startHeating(){
     delay(100);
   }
   MFS.write ("2700");
+  delay(2000);
+  MFS.write ("WATT");
   delay(2000);
 }
 
@@ -242,7 +244,6 @@ void setup() {
 void loop() {
 
   byte btn = MFS.getButton();
-  //MFS.write (millis() - time);
   switch (countDownMode)
   {
     case COUNTING_STOPPED:
@@ -254,7 +255,6 @@ void loop() {
         checkCountDownConditions(btn);
         MFS.blinkDisplay(DIGIT_1 | DIGIT_2 | DIGIT_3 | DIGIT_4, OFF);
         sensor.readTemp();
-        //tempSensor = sensor.getTemp() * 3;
         tempSensor = sensor.getTemp();
         MFS.write(tempSensor, 2);
         break;
@@ -274,8 +274,8 @@ void loop() {
         checkCountDownConditions(btn);
         MFS.blinkDisplay(DIGIT_1 | DIGIT_2 | DIGIT_3 | DIGIT_4, OFF);
         sensor.readTemp();
-        tempSensor = sensor.getTemp() * 3;
-        //tempSensor = sensor.getTemp();
+        //tempSensor = sensor.getTemp() * 3;
+        tempSensor = sensor.getTemp();
         MFS.write(tempSensor, 2);
         break;
   }
