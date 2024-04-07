@@ -45,8 +45,9 @@ MicroDS18B20<2> sensor;
 float tempSensor = 0; //переменная температуры
 float tempStopDistillers = 94.0f; //стоп дистилляции
 float tempStabileColumn = 70.0f; //стабилизация колонны
-unsigned long timerHeat = 3600000; //время перезапуска таймера печки
+unsigned long timerHeat = 7200000; //время перезапуска таймера печки
 unsigned long time = 0; //переменная старта таймера
+bool timerRestart = 0;
 
 
 void saveTimer(char minutes, char seconds) {
@@ -63,12 +64,13 @@ void restartTimerHeating(){
   digitalWrite(PIN_RELAY_4, LOW);
   delay(400);
   // включить реле2 45 раз на 100мс
-  for(int i = 45; i > 0; i--){
+  for(int i = timerRestart ? 1 : 45; i > 0; i--){
     digitalWrite(PIN_RELAY_2, HIGH);
     delay(100);
     // выключить реле2
     digitalWrite(PIN_RELAY_2, LOW);
     delay(100);
+    timerRestart = 1;
   }
 
 }
