@@ -168,6 +168,17 @@ void checkSetupConditions(byte btn) {
   }
 }
 
+void checkStabileConditions (byte btn) {
+  // отработка нажатия кнопки 2 "Фиксация температуры" в режиме "STABILE"
+  if (btn == BUTTON_2_PRESSED) {
+    //countDownMode = COUNTING_STOPPED; // stop the timer
+    MFS.beep(6, 2, 2);  // beep 6 times, 200 milliseconds on / 200 off
+    tempStabileColumn = tempSensor;
+    MFS.write (tempSensor);
+    MFS.blinkDisplay(DIGIT_1 | DIGIT_2 | DIGIT_3 | DIGIT_4);
+    delay(2000);
+  }
+
 void checkCountDownConditions (byte btn) {
   // отработка нажатия кнопки 1 "Стоп" в режиме "WORK"
   if (btn == BUTTON_1_SHORT_RELEASE || btn == BUTTON_1_LONG_RELEASE) {
@@ -279,6 +290,7 @@ void loop() {
         //tempSensor = sensor.getTemp() * 3;
         tempSensor = sensor.getTemp();
         MFS.write(tempSensor, 2);
+        checkStabileConditions(btn);
         break;
   }
   
