@@ -18,29 +18,22 @@
 #define PIN_RELAY_3  9 // Arduino пин, подключенный через IN6 к реле на кнопку "-" печки
 #define PIN_RELAY_4  A5 // Arduino пин, подключенный через IN6 к реле на кнопку "Timer" печки
 
-enum CountDownModeValues
+enum RunningModeValues
 {
-  COUNTING_STOPPED,
-  WORK,
+  INIT,
   SETUP,
-  END,
-  STABILE
-};
-
-enum CountingModeValues
-{
-  DIST,
-  RECT
+  HEATING_DISTIL,
+  DISTIL,
+  STOP_DISTIL,
+  HEATING_RECTIF,
+  STABILE_RECTIF,
+  STOP_RECTIF
 };
 
 // задаем режим работы при старте
-byte countDownMode = SETUP;
-byte countingMode = DIST;
+byte RunningMode = SETUP;
 
-//char seconds = 0;
-//char minutes = 0;
 MicroDS18B20<2> sensor;
-
 
 float tempSensor = 0; //переменная температуры
 float tempStopDistillers = 94.0f; //стоп дистилляции
@@ -49,11 +42,17 @@ unsigned long timerHeat = 7200000; //время перезапуска тайм�
 unsigned long time = 0; //переменная старта таймера
 bool timerRestart = 0;
 
-
-void saveTimer(char minutes, char seconds) {
-  EEPROM.writeByte(0, seconds);
-  EEPROM.writeByte(sizeof(byte), minutes);
+/*
+void saveTemp(float stopDistil, char stabileColumn) {
+  EEPROM.writeByte(0, stopDistil);
+  EEPROM.writeByte(sizeof(byte), stabileColumn);
 }
+
+void readTemp(float stopDistil, char stabileColumn) {
+  EEPROM.readByte(0, stopDistil);
+  EEPROM.readByte(sizeof(byte), stabileColumn);
+}
+*/
 
 void restartTimerHeating(){
   //продление нагрева печки нажатиями кнопок "Timer" и "+"
@@ -77,7 +76,7 @@ void restartTimerHeating(){
 
 void powerDownStabile(){
   //уменьшение мощности печки для стабилизации колонны при ректификации нажатиями кнопок "-" 6 раз
-  delay(2000);
+  //delay(2000);
   for(int i = 6; i > 0; i--){
     //включить реле3 на 100мс
     digitalWrite(PIN_RELAY_3, HIGH);
@@ -92,10 +91,10 @@ void startHeating(){
   // включение печки и выбор мощности нагрева 2700 после старта на 2000
   // включить реле1
   digitalWrite(PIN_RELAY_1, HIGH);
-  delay(50);
+  delay(100);
   // выключить реле1
   digitalWrite(PIN_RELAY_1, LOW);
-  delay(5000);
+  delay(2000);
   for(int i = 3; i > 0; i--){
     // включить реле2
     digitalWrite(PIN_RELAY_2, HIGH);
@@ -105,138 +104,39 @@ void startHeating(){
     delay(100);
   }
   MFS.write ("2700");
-  delay(2000);
+  delay(1000);
   MFS.write ("WATT");
-  delay(2000);
+  delay(1000);
 }
 
 void stopHeating(){
   // полное отключение печки
   // включить реле1
   digitalWrite(PIN_RELAY_1, HIGH);
-  delay(50);
+  delay(100);
   // выключить реле1
   digitalWrite(PIN_RELAY_1, LOW);
-  delay(50);
+  delay(100);
 }
 
 
 void loadTimer() {
   // время перезапуска таймера индукционной печки
-  //seconds=60;
-  //minutes=0;
   time = millis();
 }
 
-void checkStopConditions(byte btn) {
-  // отработка нажатия кнопки 1 "СТАРТ" в режиме COUNTING_STOPPED
-  if (btn == BUTTON_1_SHORT_RELEASE) {
-    countDownMode = WORK; // start the timer
-    MFS.beep(6, 2, 3);  // beep 3 times, 600 milliseconds on / 200 off
-    //saveTimer(minutes,seconds);
-  }
-  
 
-}
 
 void checkSetupConditions(byte btn) {
-  // отработка нажатия кнопки 1 "Старт" в режиме "Setup"
-  if (btn == BUTTON_1_SHORT_RELEASE) {
-    countDownMode = WORK; // изменен режим на Работа
-    MFS.blinkDisplay(DIGIT_1 | DIGIT_2 | DIGIT_3 | DIGIT_4, OFF);
-    MFS.write ("STRT");
-    delay(2000);
-    MFS.write (int (timerHeat/1000));
-    //MFS.write ((minutes * 60) + seconds);
-    delay(2000);
-    MFS.write ("sec");
-    delay(2000);
-    startHeating();
-    MFS.beep(1, 2, 3);  // beep 1 times, 600 milliseconds on / 200 off
-  }
-  else if (btn == BUTTON_2_PRESSED) {
-    // изменение режима работы на дист
-    countingMode = DIST;
-    MFS.write ("DIST");
-    //delay(1000);
-  }
-  else if (btn == BUTTON_3_PRESSED) {
-    // изменение режима работы на рект 
-    countingMode = RECT;
-    MFS.write ("RECT");
-    //delay(1000);
+  // отработка нажатия кнопки 1 в режиме SETUP
+  MFS.write(RunningMode);
+  if (btn == BUTTON_1_PRESSED) {
+    //RunningMode
+    //countDownMode = WORK; // start the timer
   }
 }
 
-void checkStabileConditions (byte btn) {
-  // отработка нажатия кнопки 2 "Фиксация температуры" в режиме "STABILE"
-  if (btn == BUTTON_2_PRESSED) {
-    //countDownMode = COUNTING_STOPPED; // stop the timer
-    MFS.beep(6, 2, 2);  // beep 6 times, 200 milliseconds on / 200 off
-    tempStabileColumn = tempSensor;
-    MFS.write (tempSensor);
-    MFS.blinkDisplay(DIGIT_1 | DIGIT_2 | DIGIT_3 | DIGIT_4);
-    delay(2000);
-  }
 
-void checkCountDownConditions (byte btn) {
-  // отработка нажатия кнопки 1 "Стоп" в режиме "WORK"
-  if (btn == BUTTON_1_SHORT_RELEASE || btn == BUTTON_1_LONG_RELEASE) {
-    //countDownMode = COUNTING_STOPPED; // stop the timer
-    MFS.write ("STOP");
-    delay(1000);
-    MFS.beep(6, 2, 2);  // beep 6 times, 200 milliseconds on / 200 off
-    
-  }
-  else { 
-    //тело цикла в режиме "WORK"
-    if (countingMode == DIST && tempSensor > tempStopDistillers){
-      MFS.write ("END");
-      delay(5000);
-      MFS.beep(6, 2, 2);  // beep 6 times, 200 milliseconds on / 200 off
-      stopHeating();
-      countDownMode = END;
-    }
-    
-    //тело цикла в режиме "RECT"
-    else if (countingMode == RECT && tempSensor > tempStabileColumn){
-      //снижение мощности до 1300 для стабилизации колонны
-      MFS.write ("1300");
-      delay(5000);
-      powerDownStabile();
-      MFS.beep(6, 2, 2);  // beep 6 times, 200 milliseconds on / 200 off
-      countingMode = STABILE;
-      MFS.write ("STAB");
-      delay(5000);
-    }
-    
-    //тело цикла в режиме "STABILE"
-    else if (countingMode == STABILE && tempSensor > tempStabileColumn){
-      //стабилизация колонны
-      //MFS.beep(6, 2, 2);  // beep 6 times, 200 milliseconds on / 200 off
-    }
-
-    // чтение температуры с датчика
-    sensor.requestTemp();
-    if (millis() - time >= timerHeat) {
-      MFS.beep(50, 50, 3);  // beep 3 times, 500 milliseconds on / 500 off
-      MFS.write ("RST"); delay(1000);
-      restartTimerHeating(); //перезапуск таймера печки
-      loadTimer();
-      }
-
-    delay(100);
-
-  }
-
-}
-
-void checkEndConditions(byte btn) {
-  // отработка нажатия кнопки 1 "Старт" в режиме "Setup"
-  if (btn == BUTTON_1_SHORT_RELEASE) {
-    countDownMode = SETUP;
-  }
-}
 
 
 void setup() {
@@ -255,44 +155,143 @@ void setup() {
 }
 
 void loop() {
-
   byte btn = MFS.getButton();
-  switch (countDownMode)
+  switch (RunningMode)
   {
-    case COUNTING_STOPPED:
-        checkStopConditions(btn);
-        MFS.blinkDisplay(DIGIT_1 | DIGIT_2 | DIGIT_3 | DIGIT_4);
-        break;
-        
-    case WORK:
-        checkCountDownConditions(btn);
-        MFS.blinkDisplay(DIGIT_1 | DIGIT_2 | DIGIT_3 | DIGIT_4, OFF);
-        sensor.readTemp();
-        tempSensor = sensor.getTemp();
-        MFS.write(tempSensor, 2);
-        break;
-
     case SETUP:
         checkSetupConditions(btn);
-        MFS.blinkDisplay(DIGIT_1 | DIGIT_2 | DIGIT_3 | DIGIT_4);
+        //MFS.write("____");
+        //MFS.blinkDisplay(DIGIT_1 | DIGIT_2 | DIGIT_3 | DIGIT_4);
         break;
+    /*
+        case WORK:
+            checkCountDownConditions(btn);
+            MFS.blinkDisplay(DIGIT_1 | DIGIT_2 | DIGIT_3 | DIGIT_4, OFF);
+            sensor.readTemp();
+            tempSensor = sensor.getTemp();
+            MFS.write(tempSensor, 2);
+            break;
 
-    case END:
-        checkEndConditions(btn);
-        MFS.write ("END");
-        MFS.blinkDisplay(DIGIT_1 | DIGIT_2 | DIGIT_3 | DIGIT_4);
-        break;
+        case SETUP:
+            checkSetupConditions(btn);
+            MFS.blinkDisplay(DIGIT_1 | DIGIT_2 | DIGIT_3 | DIGIT_4);
+            break;
 
-    case STABILE:
-        checkCountDownConditions(btn);
+        case END:
+            checkEndConditions(btn);
+            MFS.write ("END");
+            MFS.blinkDisplay(DIGIT_1 | DIGIT_2 | DIGIT_3 | DIGIT_4);
+            break;
+
+        case STABILE:
+            checkCountDownConditions(btn);
+            MFS.blinkDisplay(DIGIT_1 | DIGIT_2 | DIGIT_3 | DIGIT_4, OFF);
+            sensor.readTemp();
+            //tempSensor = sensor.getTemp() * 3;
+            tempSensor = sensor.getTemp();
+            MFS.write(tempSensor, 2);
+            checkStabileConditions(btn);
+            break;
+
+        void checkSetupConditions(byte btn) {
+      // отработка нажатия кнопки 1 "Старт" в режиме "Setup"
+      if (btn == BUTTON_1_SHORT_RELEASE) {
+        countDownMode = WORK; // изменен режим на Работа
         MFS.blinkDisplay(DIGIT_1 | DIGIT_2 | DIGIT_3 | DIGIT_4, OFF);
-        sensor.readTemp();
-        //tempSensor = sensor.getTemp() * 3;
-        tempSensor = sensor.getTemp();
-        MFS.write(tempSensor, 2);
-        checkStabileConditions(btn);
-        break;
-  }
-  
+        MFS.write ("STRT");
+        delay(2000);
+        MFS.write (int (timerHeat/1000));
+        //MFS.write ((minutes * 60) + seconds);
+        delay(2000);
+        MFS.write ("sec");
+        delay(2000);
+        startHeating();
+        MFS.beep(1, 2, 3);  // beep 1 times, 600 milliseconds on / 200 off
+      }
+      else if (btn == BUTTON_2_PRESSED) {
+        // изменение режима работы на дист
+        countingMode = DIST;
+        MFS.write ("DIST");
+        //delay(1000);
+      }
+      else if (btn == BUTTON_3_PRESSED) {
+        // изменение режима работы на рект 
+        countingMode = RECT;
+        MFS.write ("RECT");
+        //delay(1000);
+      }
+    }
 
+    void checkStabileConditions (byte btn) {
+      // отработка нажатия кнопки 2 "Фиксация температуры" в режиме "STABILE"
+      if (btn == BUTTON_2_PRESSED) {
+        //countDownMode = COUNTING_STOPPED; // stop the timer
+        MFS.beep(6, 2, 2);  // beep 6 times, 200 milliseconds on / 200 off
+        tempStabileColumn = tempSensor;
+        MFS.write (tempSensor);
+        MFS.blinkDisplay(DIGIT_1 | DIGIT_2 | DIGIT_3 | DIGIT_4);
+        delay(2000);
+      }
+    }
+
+    void checkCountDownConditions (byte btn) {
+      // отработка нажатия кнопки 1 "Стоп" в режиме "WORK"
+      if (btn == BUTTON_1_SHORT_RELEASE || btn == BUTTON_1_LONG_RELEASE) {
+        //countDownMode = COUNTING_STOPPED; // stop the timer
+        MFS.write ("STOP");
+        delay(1000);
+        MFS.beep(6, 2, 2);  // beep 6 times, 200 milliseconds on / 200 off
+        
+      }
+      else { 
+        //тело цикла в режиме "WORK"
+        if (countingMode == DIST && tempSensor > tempStopDistillers){
+          MFS.write ("END");
+          delay(5000);
+          MFS.beep(6, 2, 2);  // beep 6 times, 200 milliseconds on / 200 off
+          stopHeating();
+          countDownMode = END;
+        }
+        
+        //тело цикла в режиме "RECT"
+        else if (countingMode == RECT && tempSensor > tempStabileColumn){
+          //снижение мощности до 1300 для стабилизации колонны
+          MFS.write ("1300");
+          delay(5000);
+          powerDownStabile();
+          MFS.beep(6, 2, 2);  // beep 6 times, 200 milliseconds on / 200 off
+          countingMode = STABILE;
+          MFS.write ("STAB");
+          delay(5000);
+        }
+        
+        //тело цикла в режиме "STABILE"
+        else if (countingMode == STABILE && tempSensor > tempStabileColumn){
+          //стабилизация колонны
+          //MFS.beep(6, 2, 2);  // beep 6 times, 200 milliseconds on / 200 off
+        }
+
+        // чтение температуры с датчика
+        sensor.requestTemp();
+        if (millis() - time >= timerHeat) {
+          MFS.beep(50, 50, 3);  // beep 3 times, 500 milliseconds on / 500 off
+          MFS.write ("RST"); delay(1000);
+          restartTimerHeating(); //перезапуск таймера печки
+          loadTimer();
+          }
+
+        delay(100);
+
+      }
+
+    }
+
+    void checkEndConditions(byte btn) {
+      // отработка нажатия кнопки 1 "Старт" в режиме "Setup"
+      if (btn == BUTTON_1_SHORT_RELEASE) {
+        MFS.write(
+      }
+    }
+        */
+  }
 }
